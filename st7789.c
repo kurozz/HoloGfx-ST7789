@@ -1,5 +1,6 @@
 #include "st7789.h"
 #include <string.h>
+#include <stdlib.h>
 
 /* Advanced options */
 #define ST7789_COLOR_MODE_16bit 0x55    //  RGB565 (16bit)
@@ -66,6 +67,7 @@
 /* Internal constants (moved from header to avoid namespace pollution) */
 #define HOR_LEN 5  // Number of horizontal lines to buffer
 #define MAX_DISPLAY_WIDTH 320  // Maximum width among all supported displays
+#define MIN_BUFFER_SIZE 256  // Minimum buffer size in bytes (128 pixels)
 
 /* Global runtime configuration */
 ST7789_Config_t st7789_config = {
@@ -78,10 +80,11 @@ ST7789_Config_t st7789_config = {
 };
 
 /* Display buffer for optimized drawing operations.
+ * Dynamically allocated based on display size to optimize RAM usage.
  * Used for both DMA and non-DMA modes to improve performance.
- * Sized for maximum supported display width.
  */
-uint16_t disp_buf[MAX_DISPLAY_WIDTH * HOR_LEN];
+uint16_t *disp_buf = NULL;
+uint16_t disp_buf_size = 0;  // Size in uint16_t elements (pixels)
 
 #ifdef ST7789_USE_DMA
 uint16_t st7789_dma_min_size = 16;
@@ -144,6 +147,52 @@ static void ST7789_WriteSmallData(uint8_t data)
 	ST7789_DC_Set();
 	HAL_SPI_Transmit(&ST7789_SPI_PORT, &data, sizeof(data), HAL_MAX_DELAY);
 	ST7789_UnSelect();
+}
+
+/**
+ * @brief Allocate or reallocate display buffer
+ * @param buffer_size_bytes -> requested buffer size in bytes (0 = auto-calculate optimal)
+ * @return 0 on success, -1 on failure
+ */
+static int ST7789_AllocateBuffer(uint16_t buffer_size_bytes)
+{
+	uint16_t actual_buffer_size;
+
+	// Calculate optimal buffer size if auto (0)
+	if (buffer_size_bytes == 0) {
+		// Optimal: display_width * HOR_LEN * 2 bytes
+		actual_buffer_size = st7789_config.width * HOR_LEN * 2;
+	} else {
+		// Use requested size with bounds checking
+		uint16_t min_size = MIN_BUFFER_SIZE;
+		uint16_t max_size = st7789_config.width * HOR_LEN * 2;
+
+		if (buffer_size_bytes < min_size) {
+			actual_buffer_size = min_size;
+		} else if (buffer_size_bytes > max_size) {
+			actual_buffer_size = max_size;
+		} else {
+			actual_buffer_size = buffer_size_bytes;
+		}
+	}
+
+	// Free existing buffer if any
+	if (disp_buf != NULL) {
+		free(disp_buf);
+		disp_buf = NULL;
+		disp_buf_size = 0;
+	}
+
+	// Allocate new buffer
+	disp_buf = (uint16_t*)malloc(actual_buffer_size);
+	if (disp_buf == NULL) {
+		return -1;  // Allocation failed
+	}
+
+	disp_buf_size = actual_buffer_size / sizeof(uint16_t);
+	memset(disp_buf, 0, actual_buffer_size);
+
+	return 0;  // Success
 }
 
 /**
@@ -293,9 +342,11 @@ static void ST7789_SetAddressWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint1
  * @brief Initialize ST7789 controller with runtime parameters
  * @param display_type -> type of display (135x240, 240x240, or 170x320)
  * @param rotation -> rotation value (0-3)
+ * @param buffer_size_bytes -> buffer size in bytes (0 = auto-calculate optimal size)
+ *                             If non-zero but less than minimum, uses minimum size
  * @return none
  */
-void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation)
+void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t buffer_size_bytes)
 {
 	// Set display type and rotation
 	st7789_config.display_type = display_type;
@@ -306,7 +357,11 @@ void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation)
 	                               &st7789_config.width, &st7789_config.height,
 	                               &st7789_config.x_shift, &st7789_config.y_shift);
 
-	memset(disp_buf, 0, sizeof(disp_buf));
+	// Allocate buffer with requested size
+	// 0 = auto (optimal), non-zero = custom (bounded to min/max)
+	ST7789_AllocateBuffer(buffer_size_bytes);
+
+	// Hardware initialization
 	HAL_Delay(10);
 	ST7789_RST_Clr();
 	HAL_Delay(10);
@@ -363,6 +418,19 @@ void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation)
 }
 
 /**
+ * @brief Deinitialize ST7789 and free allocated buffer
+ * @return none
+ */
+void ST7789_Deinit(void)
+{
+	if (disp_buf != NULL) {
+		free(disp_buf);
+		disp_buf = NULL;
+		disp_buf_size = 0;
+	}
+}
+
+/**
  * @brief Fill the DisplayWindow with single color
  * @param color -> color to Fill with
  * @return none
@@ -412,19 +480,20 @@ void ST7789_Fill(uint16_t xSta, uint16_t ySta, uint16_t xEnd, uint16_t yEnd, uin
 
 	ST7789_Select();
 	uint32_t size = (xEnd-xSta + 1) * (yEnd - ySta + 1) * 2;
-	uint8_t buffer_count = size/sizeof(disp_buf);
-	uint16_t remainder = size%sizeof(disp_buf);
+	uint32_t buffer_bytes = disp_buf_size * sizeof(uint16_t);
+	uint32_t buffer_count = size / buffer_bytes;
+	uint32_t remainder = size % buffer_bytes;
 
 	// Fill buffer with color in big-endian format (high byte first)
 	// ST7789 expects RGB565 as: [R4R3R2R1R0G5G4G3][G2G1G0B4B3B2B1B0]
 	uint16_t color_swapped = (color >> 8) | (color << 8);
-	for (int i = 0; i < sizeof(disp_buf) / sizeof(disp_buf[0]); i++) {
+	for (uint16_t i = 0; i < disp_buf_size; i++) {
 		disp_buf[i] = color_swapped;
 	}
 
 	ST7789_SetAddressWindow(xSta, ySta, xEnd, yEnd);
-	for (uint8_t i = 0; i < buffer_count; i++) {
-		ST7789_WriteData((uint8_t*)disp_buf, sizeof(disp_buf));
+	for (uint32_t i = 0; i < buffer_count; i++) {
+		ST7789_WriteData((uint8_t*)disp_buf, buffer_bytes);
 	}
 
 	if (remainder > 0) {

@@ -74,7 +74,8 @@ extern ST7789_Config_t st7789_config;
 #define ST7789_Y_SHIFT (st7789_config.y_shift)
 
 /* Basic functions. */
-void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation);
+void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t buffer_size_bytes);
+void ST7789_Deinit(void);
 void ST7789_SetRotation(uint8_t rotation);
 void ST7789_Fill_Color(uint16_t color);
 void ST7789_DrawPixel(uint16_t x, uint16_t y, uint16_t color);
