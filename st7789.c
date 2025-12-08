@@ -160,6 +160,15 @@ static void ST7789_WriteSmallData(uint8_t data)
 }
 
 /**
+ * @brief Check if display is initialized
+ * @return 1 if initialized, 0 otherwise
+ */
+static inline uint8_t ST7789_isInitialized(void)
+{
+	return (st7789_disp_buf != NULL);
+}
+
+/**
  * @brief Allocate or reallocate display buffer
  * @param buffer_size_bytes -> requested buffer size in bytes (0 = auto-calculate optimal)
  * @return 0 on success, -1 on failure
@@ -293,6 +302,8 @@ static void ST7789_CalculateDisplayParams(ST7789_DisplayType_t type, uint8_t rot
  */
 void ST7789_setRotation(uint8_t m)
 {
+	if (!ST7789_isInitialized()) return;
+
 	// Update runtime configuration
 	st7789_config.rotation = m;
 	ST7789_CalculateDisplayParams(st7789_config.display_type, m,
@@ -483,6 +494,7 @@ ST7789_DisplayType_t ST7789_getDisplayType(void)
  */
 void ST7789_fillScreen(uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
 	ST7789_fillRect(0, 0, ST7789_WIDTH, ST7789_HEIGHT, color);
 }
 
@@ -511,6 +523,7 @@ static inline void ST7789_DrawPixel_Internal(uint16_t x, uint16_t y, uint16_t co
  */
 void ST7789_drawPixel(uint16_t x, uint16_t y, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
 	ST7789_Select();
 	ST7789_DrawPixel_Internal(x, y, color);
 	ST7789_UnSelect();
@@ -524,6 +537,8 @@ void ST7789_drawPixel(uint16_t x, uint16_t y, uint16_t color)
  */
 void ST7789_DrawPixel_4px(uint16_t x, uint16_t y, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
+
 	// Need at least 1 pixel margin for 3x3 block
 	if ((x < 1) || (x >= ST7789_WIDTH - 1) ||
 	    (y < 1) || (y >= ST7789_HEIGHT - 1))
@@ -600,6 +615,7 @@ static void ST7789_DrawLine_Internal(uint16_t x0, uint16_t y0, uint16_t x1, uint
  */
 void ST7789_drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
     ST7789_Select();
     ST7789_DrawLine_Internal(x0, y0, x1, y1, color);
     ST7789_UnSelect();
@@ -615,6 +631,8 @@ void ST7789_drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_
  */
 void ST7789_drawFastHLine(uint16_t x, uint16_t y, uint16_t w, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
+
 	// Bounds checking
 	if (y >= ST7789_HEIGHT) return;
 	if (x >= ST7789_WIDTH) return;
@@ -661,6 +679,8 @@ void ST7789_drawFastHLine(uint16_t x, uint16_t y, uint16_t w, uint16_t color)
  */
 void ST7789_drawFastVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
+
 	// Bounds checking
 	if (x >= ST7789_WIDTH) return;
 	if (y >= ST7789_HEIGHT) return;
@@ -706,6 +726,7 @@ void ST7789_drawFastVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t color)
  */
 void ST7789_drawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
 	if (w == 0 || h == 0) return;
 
 	ST7789_Select();
@@ -725,6 +746,7 @@ void ST7789_drawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t co
  */
 void ST7789_drawCircle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
 	int16_t f = 1 - r;
 	int16_t ddF_x = 1;
 	int16_t ddF_y = -2 * r;
@@ -769,6 +791,7 @@ void ST7789_drawCircle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color)
  */
 void ST7789_drawImage(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint16_t *data)
 {
+	if (!ST7789_isInitialized()) return;
 	if ((x >= ST7789_WIDTH) || (y >= ST7789_HEIGHT))
 		return;
 	if ((x + w - 1) >= ST7789_WIDTH)
@@ -798,6 +821,7 @@ void ST7789_drawImage(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint
  */
 void ST7789_invertColors(uint8_t invert)
 {
+	if (!ST7789_isInitialized()) return;
 	ST7789_Select();
 	ST7789_WriteCommand(invert ? 0x21 /* INVON */ : 0x20 /* INVOFF */);
 	ST7789_UnSelect();
@@ -814,6 +838,8 @@ void ST7789_invertColors(uint8_t invert)
  */
 void ST7789_drawChar(uint16_t x, uint16_t y, char ch, const GFXfont *font, uint16_t color, uint16_t bgcolor)
 {
+	if (!ST7789_isInitialized()) return;
+
 	// Check if character is in font range
 	if ((ch < font->first) || (ch > font->last)) {
 		return;
@@ -931,6 +957,8 @@ void ST7789_drawChar(uint16_t x, uint16_t y, char ch, const GFXfont *font, uint1
  */
 void ST7789_drawString(uint16_t x, uint16_t y, const char *str, const GFXfont *font, uint16_t color, uint16_t bgcolor)
 {
+	if (!ST7789_isInitialized()) return;
+
 	int16_t cursor_x = x;
 	int16_t cursor_y = y;
 
@@ -1038,6 +1066,8 @@ void ST7789_getTextBounds(const char *str, const GFXfont *font, uint16_t *w, uin
  */
 void ST7789_fillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
+
 	uint32_t size;
 	uint32_t buffer_bytes;
 	uint32_t buffer_count;
@@ -1098,6 +1128,7 @@ void ST7789_fillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t co
  */
 void ST7789_drawTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
 	ST7789_Select();
 	/* Draw lines */
 	ST7789_DrawLine_Internal(x1, y1, x2, y2, color);
@@ -1114,6 +1145,7 @@ void ST7789_drawTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uin
  */
 void ST7789_fillTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
 	ST7789_Select();
 	int16_t deltax = 0, deltay = 0, x = 0, y = 0, xinc1 = 0, xinc2 = 0,
 			yinc1 = 0, yinc2 = 0, den = 0, num = 0, numadd = 0, numpixels = 0,
@@ -1183,6 +1215,7 @@ void ST7789_fillTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uin
  */
 void ST7789_fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
 {
+	if (!ST7789_isInitialized()) return;
 	ST7789_Select();
 	int16_t f = 1 - r;
 	int16_t ddF_x = 1;
@@ -1223,6 +1256,7 @@ void ST7789_fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
  */
 void ST7789_tearEffect(uint8_t tear)
 {
+	if (!ST7789_isInitialized()) return;
 	ST7789_Select();
 	ST7789_WriteCommand(tear ? 0x35 /* TEON */ : 0x34 /* TEOFF */);
 	ST7789_UnSelect();
@@ -1236,6 +1270,7 @@ void ST7789_tearEffect(uint8_t tear)
  */
 void ST7789_test(void)
 {
+	if (!ST7789_isInitialized()) return;
 	ST7789_fillScreen(ST7789_COLOR_WHITE);
 	ST7789_drawString(10, 30, "Speed Test", &FreeSans12pt7b, ST7789_COLOR_RED, ST7789_COLOR_WHITE);
 	ST7789_fillScreen(ST7789_COLOR_CYAN);
