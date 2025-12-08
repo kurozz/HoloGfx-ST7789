@@ -83,8 +83,8 @@ ST7789_Config_t st7789_config = {
  * Dynamically allocated based on display size to optimize RAM usage.
  * Used for both DMA and non-DMA modes to improve performance.
  */
-uint16_t *disp_buf = NULL;
-uint16_t disp_buf_size = 0;  // Size in uint16_t elements (pixels)
+uint16_t *st7789_disp_buf = NULL;
+uint16_t st7789_disp_buf_size = 0;  // Size in uint16_t elements (pixels)
 
 #ifdef ST7789_USE_DMA
 uint16_t st7789_dma_min_size = 16;
@@ -177,20 +177,20 @@ static int ST7789_AllocateBuffer(uint16_t buffer_size_bytes)
 	}
 
 	// Free existing buffer if any
-	if (disp_buf != NULL) {
-		free(disp_buf);
-		disp_buf = NULL;
-		disp_buf_size = 0;
+	if (st7789_disp_buf != NULL) {
+		free(st7789_disp_buf);
+		st7789_disp_buf = NULL;
+		st7789_disp_buf_size = 0;
 	}
 
 	// Allocate new buffer
-	disp_buf = (uint16_t*)malloc(actual_buffer_size);
-	if (disp_buf == NULL) {
+	st7789_disp_buf = (uint16_t*)malloc(actual_buffer_size);
+	if (st7789_disp_buf == NULL) {
 		return -1;  // Allocation failed
 	}
 
-	disp_buf_size = actual_buffer_size / sizeof(uint16_t);
-	memset(disp_buf, 0, actual_buffer_size);
+	st7789_disp_buf_size = actual_buffer_size / sizeof(uint16_t);
+	memset(st7789_disp_buf, 0, actual_buffer_size);
 
 	return 0;  // Success
 }
@@ -423,10 +423,10 @@ void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t b
  */
 void ST7789_Deinit(void)
 {
-	if (disp_buf != NULL) {
-		free(disp_buf);
-		disp_buf = NULL;
-		disp_buf_size = 0;
+	if (st7789_disp_buf != NULL) {
+		free(st7789_disp_buf);
+		st7789_disp_buf = NULL;
+		st7789_disp_buf_size = 0;
 	}
 }
 
@@ -492,24 +492,24 @@ void ST7789_Fill(uint16_t xSta, uint16_t ySta, uint16_t xEnd, uint16_t yEnd, uin
 
 	ST7789_Select();
 	uint32_t size = (xEnd-xSta + 1) * (yEnd - ySta + 1) * 2;
-	uint32_t buffer_bytes = disp_buf_size * sizeof(uint16_t);
+	uint32_t buffer_bytes = st7789_disp_buf_size * sizeof(uint16_t);
 	uint32_t buffer_count = size / buffer_bytes;
 	uint32_t remainder = size % buffer_bytes;
 
 	// Fill buffer with color in big-endian format (high byte first)
 	// ST7789 expects RGB565 as: [R4R3R2R1R0G5G4G3][G2G1G0B4B3B2B1B0]
 	uint16_t color_swapped = (color >> 8) | (color << 8);
-	for (uint16_t i = 0; i < disp_buf_size; i++) {
-		disp_buf[i] = color_swapped;
+	for (uint16_t i = 0; i < st7789_disp_buf_size; i++) {
+		st7789_disp_buf[i] = color_swapped;
 	}
 
 	ST7789_SetAddressWindow(xSta, ySta, xEnd, yEnd);
 	for (uint32_t i = 0; i < buffer_count; i++) {
-		ST7789_WriteData((uint8_t*)disp_buf, buffer_bytes);
+		ST7789_WriteData((uint8_t*)st7789_disp_buf, buffer_bytes);
 	}
 
 	if (remainder > 0) {
-		ST7789_WriteData((uint8_t*)disp_buf, remainder);
+		ST7789_WriteData((uint8_t*)st7789_disp_buf, remainder);
 	}
 
 	ST7789_UnSelect();
