@@ -441,6 +441,23 @@ void ST7789_Fill_Color(uint16_t color)
 }
 
 /**
+ * @brief Internal helper to draw a pixel without CS control
+ * @param x&y -> coordinate to Draw
+ * @param color -> color of the Pixel
+ * @return none
+ * @note Caller must handle ST7789_Select/UnSelect
+ */
+static inline void ST7789_DrawPixel_Internal(uint16_t x, uint16_t y, uint16_t color)
+{
+	if ((x >= ST7789_WIDTH) || (y >= ST7789_HEIGHT))
+		return;
+
+	ST7789_SetAddressWindow(x, y, x, y);
+	uint8_t data[] = {color >> 8, color & 0xFF};
+	ST7789_WriteData(data, sizeof(data));
+}
+
+/**
  * @brief Draw a Pixel
  * @param x&y -> coordinate to Draw
  * @param color -> color of the Pixel
@@ -448,13 +465,8 @@ void ST7789_Fill_Color(uint16_t color)
  */
 void ST7789_DrawPixel(uint16_t x, uint16_t y, uint16_t color)
 {
-	if ((x >= ST7789_WIDTH) || (y >= ST7789_HEIGHT))
-		return;
-
-	ST7789_SetAddressWindow(x, y, x, y);
-	uint8_t data[] = {color >> 8, color & 0xFF};
 	ST7789_Select();
-	ST7789_WriteData(data, sizeof(data));
+	ST7789_DrawPixel_Internal(x, y, color);
 	ST7789_UnSelect();
 }
 
@@ -522,14 +534,15 @@ void ST7789_DrawPixel_4px(uint16_t x, uint16_t y, uint16_t color)
 }
 
 /**
- * @brief Draw a line with single color
+ * @brief Internal helper to draw a line without CS control
  * @param x1&y1 -> coordinate of the start point
  * @param x2&y2 -> coordinate of the end point
  * @param color -> color of the line to Draw
  * @return none
+ * @note Caller must handle ST7789_Select/UnSelect
  */
-void ST7789_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
-        uint16_t color) {
+static void ST7789_DrawLine_Internal(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
+{
 	uint16_t swap;
     uint16_t steep = ST7789_ABS(y1 - y0) > ST7789_ABS(x1 - x0);
     if (steep) {
@@ -540,8 +553,6 @@ void ST7789_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
 		swap = x1;
 		x1 = y1;
 		y1 = swap;
-        //_swap_int16_t(x0, y0);
-        //_swap_int16_t(x1, y1);
     }
 
     if (x0 > x1) {
@@ -552,8 +563,6 @@ void ST7789_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
 		swap = y0;
 		y0 = y1;
 		y1 = swap;
-        //_swap_int16_t(x0, x1);
-        //_swap_int16_t(y0, y1);
     }
 
     int16_t dx, dy;
@@ -571,9 +580,9 @@ void ST7789_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
 
     for (; x0<=x1; x0++) {
         if (steep) {
-            ST7789_DrawPixel(y0, x0, color);
+            ST7789_DrawPixel_Internal(y0, x0, color);
         } else {
-            ST7789_DrawPixel(x0, y0, color);
+            ST7789_DrawPixel_Internal(x0, y0, color);
         }
         err -= dy;
         if (err < 0) {
@@ -581,6 +590,20 @@ void ST7789_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
             err += dx;
         }
     }
+}
+
+/**
+ * @brief Draw a line with single color
+ * @param x1&y1 -> coordinate of the start point
+ * @param x2&y2 -> coordinate of the end point
+ * @param color -> color of the line to Draw
+ * @return none
+ */
+void ST7789_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
+{
+    ST7789_Select();
+    ST7789_DrawLine_Internal(x0, y0, x1, y1, color);
+    ST7789_UnSelect();
 }
 
 /**
@@ -592,14 +615,14 @@ void ST7789_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1,
 void ST7789_DrawRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color)
 {
 	ST7789_Select();
-	ST7789_DrawLine(x1, y1, x2, y1, color);
-	ST7789_DrawLine(x1, y1, x1, y2, color);
-	ST7789_DrawLine(x1, y2, x2, y2, color);
-	ST7789_DrawLine(x2, y1, x2, y2, color);
+	ST7789_DrawLine_Internal(x1, y1, x2, y1, color);
+	ST7789_DrawLine_Internal(x1, y1, x1, y2, color);
+	ST7789_DrawLine_Internal(x1, y2, x2, y2, color);
+	ST7789_DrawLine_Internal(x2, y1, x2, y2, color);
 	ST7789_UnSelect();
 }
 
-/** 
+/**
  * @brief Draw a circle with single color
  * @param x0&y0 -> coordinate of circle center
  * @param r -> radius of circle
@@ -615,10 +638,10 @@ void ST7789_DrawCircle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color)
 	int16_t y = r;
 
 	ST7789_Select();
-	ST7789_DrawPixel(x0, y0 + r, color);
-	ST7789_DrawPixel(x0, y0 - r, color);
-	ST7789_DrawPixel(x0 + r, y0, color);
-	ST7789_DrawPixel(x0 - r, y0, color);
+	ST7789_DrawPixel_Internal(x0, y0 + r, color);
+	ST7789_DrawPixel_Internal(x0, y0 - r, color);
+	ST7789_DrawPixel_Internal(x0 + r, y0, color);
+	ST7789_DrawPixel_Internal(x0 - r, y0, color);
 
 	while (x < y) {
 		if (f >= 0) {
@@ -630,15 +653,15 @@ void ST7789_DrawCircle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color)
 		ddF_x += 2;
 		f += ddF_x;
 
-		ST7789_DrawPixel(x0 + x, y0 + y, color);
-		ST7789_DrawPixel(x0 - x, y0 + y, color);
-		ST7789_DrawPixel(x0 + x, y0 - y, color);
-		ST7789_DrawPixel(x0 - x, y0 - y, color);
+		ST7789_DrawPixel_Internal(x0 + x, y0 + y, color);
+		ST7789_DrawPixel_Internal(x0 - x, y0 + y, color);
+		ST7789_DrawPixel_Internal(x0 + x, y0 - y, color);
+		ST7789_DrawPixel_Internal(x0 - x, y0 - y, color);
 
-		ST7789_DrawPixel(x0 + y, y0 + x, color);
-		ST7789_DrawPixel(x0 - y, y0 + x, color);
-		ST7789_DrawPixel(x0 + y, y0 - x, color);
-		ST7789_DrawPixel(x0 - y, y0 - x, color);
+		ST7789_DrawPixel_Internal(x0 + y, y0 + x, color);
+		ST7789_DrawPixel_Internal(x0 - y, y0 + x, color);
+		ST7789_DrawPixel_Internal(x0 + y, y0 - x, color);
+		ST7789_DrawPixel_Internal(x0 - y, y0 - x, color);
 	}
 	ST7789_UnSelect();
 }
@@ -883,7 +906,7 @@ void ST7789_DrawFilledRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, 
 	ST7789_UnSelect();
 }
 
-/** 
+/**
  * @brief Draw a Triangle with single color
  * @param  xi&yi -> 3 coordinates of 3 top points.
  * @param color ->color of the lines
@@ -893,9 +916,9 @@ void ST7789_DrawTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uin
 {
 	ST7789_Select();
 	/* Draw lines */
-	ST7789_DrawLine(x1, y1, x2, y2, color);
-	ST7789_DrawLine(x2, y2, x3, y3, color);
-	ST7789_DrawLine(x3, y3, x1, y1, color);
+	ST7789_DrawLine_Internal(x1, y1, x2, y2, color);
+	ST7789_DrawLine_Internal(x2, y2, x3, y3, color);
+	ST7789_DrawLine_Internal(x3, y3, x1, y1, color);
 	ST7789_UnSelect();
 }
 
@@ -953,7 +976,7 @@ void ST7789_DrawFilledTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y
 	}
 
 	for (curpixel = 0; curpixel <= numpixels; curpixel++) {
-		ST7789_DrawLine(x, y, x3, y3, color);
+		ST7789_DrawLine_Internal(x, y, x3, y3, color);
 
 		num += numadd;
 		if (num >= den) {
@@ -983,11 +1006,11 @@ void ST7789_DrawFilledCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
 	int16_t x = 0;
 	int16_t y = r;
 
-	ST7789_DrawPixel(x0, y0 + r, color);
-	ST7789_DrawPixel(x0, y0 - r, color);
-	ST7789_DrawPixel(x0 + r, y0, color);
-	ST7789_DrawPixel(x0 - r, y0, color);
-	ST7789_DrawLine(x0 - r, y0, x0 + r, y0, color);
+	ST7789_DrawPixel_Internal(x0, y0 + r, color);
+	ST7789_DrawPixel_Internal(x0, y0 - r, color);
+	ST7789_DrawPixel_Internal(x0 + r, y0, color);
+	ST7789_DrawPixel_Internal(x0 - r, y0, color);
+	ST7789_DrawLine_Internal(x0 - r, y0, x0 + r, y0, color);
 
 	while (x < y) {
 		if (f >= 0) {
@@ -999,11 +1022,11 @@ void ST7789_DrawFilledCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
 		ddF_x += 2;
 		f += ddF_x;
 
-		ST7789_DrawLine(x0 - x, y0 + y, x0 + x, y0 + y, color);
-		ST7789_DrawLine(x0 + x, y0 - y, x0 - x, y0 - y, color);
+		ST7789_DrawLine_Internal(x0 - x, y0 + y, x0 + x, y0 + y, color);
+		ST7789_DrawLine_Internal(x0 + x, y0 - y, x0 - x, y0 - y, color);
 
-		ST7789_DrawLine(x0 + y, y0 + x, x0 - y, y0 + x, color);
-		ST7789_DrawLine(x0 + y, y0 - x, x0 - y, y0 - x, color);
+		ST7789_DrawLine_Internal(x0 + y, y0 + x, x0 - y, y0 + x, color);
+		ST7789_DrawLine_Internal(x0 + y, y0 - x, x0 - y, y0 - x, color);
 	}
 	ST7789_UnSelect();
 }
@@ -1030,67 +1053,46 @@ void ST7789_TearEffect(uint8_t tear)
 void ST7789_Test(void)
 {
 	ST7789_Fill_Color(ST7789_COLOR_WHITE);
-	HAL_Delay(1000);
 	ST7789_WriteString(10, 30, "Speed Test", &FreeSans12pt7b, ST7789_COLOR_RED, ST7789_COLOR_WHITE);
-	HAL_Delay(1000);
 	ST7789_Fill_Color(ST7789_COLOR_CYAN);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_RED);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_BLUE);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_GREEN);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_YELLOW);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_BROWN);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_DARKBLUE);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_MAGENTA);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_LIGHTGREEN);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_LGRAY);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_LBBLUE);
-    HAL_Delay(500);
 	ST7789_Fill_Color(ST7789_COLOR_WHITE);
-	HAL_Delay(500);
 
 	ST7789_WriteString(10, 30, "Font test.", &FreeSerifBold18pt7b, ST7789_COLOR_GBLUE, ST7789_COLOR_WHITE);
 	ST7789_WriteString(10, 60, "Hello World!", &FreeSans12pt7b, ST7789_COLOR_RED, ST7789_COLOR_WHITE);
 	ST7789_WriteString(10, 90, "GFX Fonts", &FreeMono9pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_WHITE);
 	ST7789_WriteString(10, 120, "STM32 Demo", &Org_01, ST7789_COLOR_MAGENTA, ST7789_COLOR_WHITE);
-	HAL_Delay(1000);
 
 	ST7789_Fill_Color(ST7789_COLOR_RED);
 	ST7789_WriteString(10, 30, "Rect./Line.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
 	ST7789_DrawRectangle(30, 40, 100, 100, ST7789_COLOR_WHITE);
-	HAL_Delay(1000);
 
 	ST7789_Fill_Color(ST7789_COLOR_RED);
 	ST7789_WriteString(10, 30, "Filled Rect.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
 	ST7789_DrawFilledRectangle(30, 40, 50, 50, ST7789_COLOR_WHITE);
-	HAL_Delay(1000);
 
 	ST7789_Fill_Color(ST7789_COLOR_RED);
 	ST7789_WriteString(10, 30, "Circle.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
 	ST7789_DrawCircle(60, 80, 25, ST7789_COLOR_WHITE);
-	HAL_Delay(1000);
 
 	ST7789_Fill_Color(ST7789_COLOR_RED);
 	ST7789_WriteString(10, 30, "Filled Cir.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
 	ST7789_DrawFilledCircle(60, 80, 25, ST7789_COLOR_WHITE);
-	HAL_Delay(1000);
 
 	ST7789_Fill_Color(ST7789_COLOR_RED);
 	ST7789_WriteString(10, 30, "Triangle", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
 	ST7789_DrawTriangle(30, 50, 30, 90, 60, 60, ST7789_COLOR_WHITE);
-	HAL_Delay(1000);
 
 	ST7789_Fill_Color(ST7789_COLOR_RED);
 	ST7789_WriteString(10, 30, "Filled Tri", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
 	ST7789_DrawFilledTriangle(30, 50, 30, 90, 60, 60, ST7789_COLOR_WHITE);
-	HAL_Delay(1000);
 }
