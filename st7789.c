@@ -443,6 +443,42 @@ void ST7789_Deinit(void)
 }
 
 /**
+ * @brief Get current display width
+ * @return Current width in pixels
+ */
+uint16_t ST7789_width(void)
+{
+	return st7789_config.width;
+}
+
+/**
+ * @brief Get current display height
+ * @return Current height in pixels
+ */
+uint16_t ST7789_height(void)
+{
+	return st7789_config.height;
+}
+
+/**
+ * @brief Get current rotation setting
+ * @return Current rotation (0-3)
+ */
+uint8_t ST7789_getRotation(void)
+{
+	return st7789_config.rotation;
+}
+
+/**
+ * @brief Get current display type
+ * @return Display type enumeration value
+ */
+ST7789_DisplayType_t ST7789_getDisplayType(void)
+{
+	return st7789_config.display_type;
+}
+
+/**
  * @brief Fill the DisplayWindow with single color
  * @param color -> color to Fill with
  * @return none
@@ -616,6 +652,98 @@ void ST7789_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_
     ST7789_Select();
     ST7789_DrawLine_Internal(x0, y0, x1, y1, color);
     ST7789_UnSelect();
+}
+
+/**
+ * @brief Draw a fast horizontal line (optimized for axis-aligned lines)
+ * @param x -> starting x coordinate
+ * @param y -> y coordinate (constant for horizontal line)
+ * @param w -> width (length of line in pixels)
+ * @param color -> color of the line
+ * @return none
+ */
+void ST7789_drawFastHLine(uint16_t x, uint16_t y, uint16_t w, uint16_t color)
+{
+	// Bounds checking
+	if (y >= ST7789_HEIGHT) return;
+	if (x >= ST7789_WIDTH) return;
+
+	// Clip width to screen boundary
+	if (x + w > ST7789_WIDTH) {
+		w = ST7789_WIDTH - x;
+	}
+
+	if (w == 0) return;
+
+	ST7789_Select();
+
+	// Set address window for single row
+	ST7789_SetAddressWindow(x, y, x + w - 1, y);
+
+	// Fill line using buffer for efficiency
+	uint16_t pixels_to_draw = w;
+	uint16_t color_swapped = (color >> 8) | (color << 8);
+
+	while (pixels_to_draw > 0) {
+		uint16_t chunk = (pixels_to_draw > st7789_disp_buf_size) ? st7789_disp_buf_size : pixels_to_draw;
+
+		// Fill buffer with color
+		for (uint16_t i = 0; i < chunk; i++) {
+			st7789_disp_buf[i] = color_swapped;
+		}
+
+		// Send chunk
+		ST7789_WriteData((uint8_t*)st7789_disp_buf, chunk * 2);
+		pixels_to_draw -= chunk;
+	}
+
+	ST7789_UnSelect();
+}
+
+/**
+ * @brief Draw a fast vertical line (optimized for axis-aligned lines)
+ * @param x -> x coordinate (constant for vertical line)
+ * @param y -> starting y coordinate
+ * @param h -> height (length of line in pixels)
+ * @param color -> color of the line
+ * @return none
+ */
+void ST7789_drawFastVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t color)
+{
+	// Bounds checking
+	if (x >= ST7789_WIDTH) return;
+	if (y >= ST7789_HEIGHT) return;
+
+	// Clip height to screen boundary
+	if (y + h > ST7789_HEIGHT) {
+		h = ST7789_HEIGHT - y;
+	}
+
+	if (h == 0) return;
+
+	ST7789_Select();
+
+	// Set address window for single column
+	ST7789_SetAddressWindow(x, y, x, y + h - 1);
+
+	// Fill line using buffer for efficiency
+	uint16_t pixels_to_draw = h;
+	uint16_t color_swapped = (color >> 8) | (color << 8);
+
+	while (pixels_to_draw > 0) {
+		uint16_t chunk = (pixels_to_draw > st7789_disp_buf_size) ? st7789_disp_buf_size : pixels_to_draw;
+
+		// Fill buffer with color
+		for (uint16_t i = 0; i < chunk; i++) {
+			st7789_disp_buf[i] = color_swapped;
+		}
+
+		// Send chunk
+		ST7789_WriteData((uint8_t*)st7789_disp_buf, chunk * 2);
+		pixels_to_draw -= chunk;
+	}
+
+	ST7789_UnSelect();
 }
 
 /**
@@ -887,7 +1015,67 @@ void ST7789_WriteString(uint16_t x, uint16_t y, const char *str, const GFXfont *
 	}
 }
 
-/** 
+/**
+ * @brief Calculate bounding box for a text string
+ * @param str -> string to measure
+ * @param font -> pointer to GFX font
+ * @param w -> pointer to store calculated width
+ * @param h -> pointer to store calculated height
+ * @return none
+ * @note This function only calculates dimensions without rendering
+ */
+void ST7789_getTextBounds(const char *str, const GFXfont *font, uint16_t *w, uint16_t *h)
+{
+	if (str == NULL || font == NULL || w == NULL || h == NULL) {
+		return;
+	}
+
+	int16_t cursor_x = 0;
+	int16_t min_x = 0, max_x = 0;
+	int16_t min_y = 0, max_y = 0;
+	uint8_t first_char = 1;
+
+	while (*str) {
+		char c = *str++;
+
+		// Check if character is in font range
+		if ((c < font->first) || (c > font->last)) {
+			continue;
+		}
+
+		// Get glyph for this character
+		GFXglyph *glyph = &font->glyph[c - font->first];
+
+		if (first_char) {
+			// Initialize bounds with first character
+			min_x = cursor_x + glyph->xOffset;
+			max_x = min_x + glyph->width;
+			min_y = glyph->yOffset;
+			max_y = min_y + glyph->height;
+			first_char = 0;
+		} else {
+			// Expand bounds for subsequent characters
+			int16_t char_min_x = cursor_x + glyph->xOffset;
+			int16_t char_max_x = char_min_x + glyph->width;
+			int16_t char_min_y = glyph->yOffset;
+			int16_t char_max_y = char_min_y + glyph->height;
+
+			if (char_min_x < min_x) min_x = char_min_x;
+			if (char_max_x > max_x) max_x = char_max_x;
+			if (char_min_y < min_y) min_y = char_min_y;
+			if (char_max_y > max_y) max_y = char_max_y;
+		}
+
+		// Advance cursor
+		cursor_x += glyph->xAdvance;
+	}
+
+	// Calculate final dimensions
+	*w = (uint16_t)(max_x - min_x);
+	*h = (uint16_t)(max_y - min_y);
+}
+
+/**
  * @brief Draw a filled Rectangle with single color
  * @param  x&y -> coordinates of the starting point
  * @param w&h -> width & height of the Rectangle

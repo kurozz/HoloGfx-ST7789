@@ -77,6 +77,12 @@ extern ST7789_Config_t st7789_config;
 void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t buffer_size_bytes);
 void ST7789_Deinit(void);
 void ST7789_SetRotation(uint8_t rotation);
+
+/* Getter functions for display properties */
+uint16_t ST7789_width(void);
+uint16_t ST7789_height(void);
+uint8_t ST7789_getRotation(void);
+ST7789_DisplayType_t ST7789_getDisplayType(void);
 void ST7789_Fill_Color(uint16_t color);
 void ST7789_DrawPixel(uint16_t x, uint16_t y, uint16_t color);
 void ST7789_Fill(uint16_t xSta, uint16_t ySta, uint16_t xEnd, uint16_t yEnd, uint16_t color);
@@ -84,6 +90,8 @@ void ST7789_DrawPixel_4px(uint16_t x, uint16_t y, uint16_t color);
 
 /* Graphical functions. */
 void ST7789_DrawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);
+void ST7789_drawFastHLine(uint16_t x, uint16_t y, uint16_t w, uint16_t color);
+void ST7789_drawFastVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t color);
 void ST7789_DrawRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);
 void ST7789_DrawCircle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color);
 void ST7789_DrawImage(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint16_t *data);
@@ -92,6 +100,7 @@ void ST7789_InvertColors(uint8_t invert);
 /* Text functions. */
 void ST7789_WriteChar(uint16_t x, uint16_t y, char ch, const GFXfont *font, uint16_t color, uint16_t bgcolor);
 void ST7789_WriteString(uint16_t x, uint16_t y, const char *str, const GFXfont *font, uint16_t color, uint16_t bgcolor);
+void ST7789_getTextBounds(const char *str, const GFXfont *font, uint16_t *w, uint16_t *h);
 
 /* Extended Graphical functions. */
 void ST7789_DrawFilledRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
