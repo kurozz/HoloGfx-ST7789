@@ -30,6 +30,18 @@
 #define ST7789_COLMOD  0x3A
 #define ST7789_MADCTL  0x36
 
+#define ST7789_PORCTRL    0xB2  // Porch Control
+#define ST7789_GCTRL      0xB7  // Gate Control
+#define ST7789_VCOMS      0xBB  // VCOM Setting
+#define ST7789_LCMCTRL    0xC0  // LCM Control
+#define ST7789_VDVVRHEN   0xC2  // VDV and VRH Command Enable
+#define ST7789_VRHS       0xC3  // VRH Set
+#define ST7789_VDVS       0xC4  // VDV Set
+#define ST7789_FRCTRL2    0xC6  // Frame Rate Control in Normal Mode
+#define ST7789_PWCTRL1    0xD0  // Power Control 1
+#define ST7789_PVGAMCTRL  0xE0  // Positive Voltage Gamma Control
+#define ST7789_NVGAMCTRL  0xE1  // Negative Voltage Gamma Control
+
 #define ST7789_RDID1   0xDA
 #define ST7789_RDID2   0xDB
 #define ST7789_RDID3   0xDC
@@ -370,7 +382,7 @@ void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t b
 
 	ST7789_WriteCommand(ST7789_COLMOD);		//	Set color mode
 	ST7789_WriteSmallData(ST7789_COLOR_MODE_16bit);
-	ST7789_WriteCommand(0xB2);				//	Porch control
+	ST7789_WriteCommand(ST7789_PORCTRL);	//	Porch control
 	{
 		uint8_t data[] = {0x0C, 0x0C, 0x00, 0x33, 0x33};
 		ST7789_WriteData(data, sizeof(data));
@@ -378,32 +390,32 @@ void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t b
 	ST7789_SetRotation(st7789_config.rotation);	//	MADCTL (Display Rotation)
 
 	/* Internal LCD Voltage generator settings */
-	ST7789_WriteCommand(0XB7);				//	Gate Control
+	ST7789_WriteCommand(ST7789_GCTRL);		//	Gate Control
 	ST7789_WriteSmallData(0x35);			//	Default value
-	ST7789_WriteCommand(0xBB);				//	VCOM setting
+	ST7789_WriteCommand(ST7789_VCOMS);		//	VCOM setting
 	ST7789_WriteSmallData(0x19);			//	0.725v (default 0.75v for 0x20)
-	ST7789_WriteCommand(0xC0);				//	LCMCTRL
-	ST7789_WriteSmallData (0x2C);			//	Default value
-	ST7789_WriteCommand (0xC2);				//	VDV and VRH command Enable
-	ST7789_WriteSmallData (0x01);			//	Default value
-	ST7789_WriteCommand (0xC3);				//	VRH set
-	ST7789_WriteSmallData (0x12);			//	+-4.45v (defalut +-4.1v for 0x0B)
-	ST7789_WriteCommand (0xC4);				//	VDV set
-	ST7789_WriteSmallData (0x20);			//	Default value
-	ST7789_WriteCommand (0xC6);				//	Frame rate control in normal mode
-	ST7789_WriteSmallData (0x0F);			//	Default value (60HZ)
-	ST7789_WriteCommand (0xD0);				//	Power control
-	ST7789_WriteSmallData (0xA4);			//	Default value
-	ST7789_WriteSmallData (0xA1);			//	Default value
+	ST7789_WriteCommand(ST7789_LCMCTRL);	//	LCM Control
+	ST7789_WriteSmallData(0x2C);			//	Default value
+	ST7789_WriteCommand(ST7789_VDVVRHEN);	//	VDV and VRH Command Enable
+	ST7789_WriteSmallData(0x01);			//	Default value
+	ST7789_WriteCommand(ST7789_VRHS);		//	VRH Set
+	ST7789_WriteSmallData(0x12);			//	+-4.45v (default +-4.1v for 0x0B)
+	ST7789_WriteCommand(ST7789_VDVS);		//	VDV Set
+	ST7789_WriteSmallData(0x20);			//	Default value
+	ST7789_WriteCommand(ST7789_FRCTRL2);	//	Frame Rate Control in Normal Mode
+	ST7789_WriteSmallData(0x0F);			//	Default value (60Hz)
+	ST7789_WriteCommand(ST7789_PWCTRL1);	//	Power Control 1
+	ST7789_WriteSmallData(0xA4);			//	Default value
+	ST7789_WriteSmallData(0xA1);			//	Default value
 	/**************** Division line ****************/
 
-	ST7789_WriteCommand(0xE0);
+	ST7789_WriteCommand(ST7789_PVGAMCTRL);	//	Positive Voltage Gamma Control
 	{
 		uint8_t data[] = {0xD0, 0x04, 0x0D, 0x11, 0x13, 0x2B, 0x3F, 0x54, 0x4C, 0x18, 0x0D, 0x0B, 0x1F, 0x23};
 		ST7789_WriteData(data, sizeof(data));
 	}
 
-	ST7789_WriteCommand(0xE1);
+	ST7789_WriteCommand(ST7789_NVGAMCTRL);	//	Negative Voltage Gamma Control
 	{
 		uint8_t data[] = {0xD0, 0x04, 0x0C, 0x11, 0x13, 0x2C, 0x3F, 0x44, 0x51, 0x2F, 0x1F, 0x1F, 0x20, 0x23};
 		ST7789_WriteData(data, sizeof(data));
