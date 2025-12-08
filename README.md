@@ -1,19 +1,67 @@
 # ST7789-STM32
-Using STM32's Hardware SPI(with simple DMA support) to drive a ST7789 based LCD display.
+Using STM32's Hardware SPI (with DMA support) to drive a ST7789 based LCD display.
 
-## How to use ?
+## How to use
 
-1. Copy the "st7789" dir to your project src path, add it to include path   
-2. Include `"st7789.h"` in where you want to use this driver.   
-3. Configure parameters in `"st7789.h"` according to your own display panel  
-4. In system startup, perform `ST7789_Init();`.  
-5. Run a `ST7789_Test()` to exam this driver.  
-6. Don't forget to turn the backlight on  
+1. Copy the "st7789" dir to your project src path, add it to include path
+2. Include `"st7789.h"` in where you want to use this driver.
+3. Configure pin definitions in `"st7789.h"` (RST, DC, CS pins)
+4. In system startup, initialize with `ST7789_init(display_type, rotation, buffer_size);`
+5. Run `ST7789_test()` to verify the driver
+6. Don't forget to turn the backlight on
+
+### Initialization Example
+
+```c
+// Initialize with 240x240 display, rotation 0, 2400 byte buffer
+ST7789_init(ST7789_DISPLAY_240x240, 0, 2400);
+
+// Get display dimensions
+uint16_t w = ST7789_width();
+uint16_t h = ST7789_height();
+```  
 
 This code has been tested on 240x240 & 170x320 LCD screens.
 
-> DMA is only useful when huge block write is performed, e.g: Fill full screen or draw a bitmap.  
-> Most MCUs don't have a large enough RAM, so a framebuffer is "cut" into pieces, e.g: a 240x5 pixel buffer for a 240x240 screen.  
+> DMA is only useful when huge block write is performed, e.g: Fill full screen or draw a bitmap.
+> Most MCUs don't have a large enough RAM, so a framebuffer is "cut" into pieces, e.g: a 240x5 pixel buffer for a 240x240 screen.
+
+## API Reference
+
+### Initialization & Configuration
+- `ST7789_init(display_type, rotation, buffer_size)` - Initialize display
+- `ST7789_deinit()` - Deinitialize and free resources
+- `ST7789_setRotation(rotation)` - Change screen rotation (0-3)
+- `ST7789_width()` - Get current width in pixels
+- `ST7789_height()` - Get current height in pixels
+- `ST7789_getRotation()` - Get current rotation
+- `ST7789_getDisplayType()` - Get display type
+
+### Basic Drawing
+- `ST7789_fillScreen(color)` - Fill entire screen with color
+- `ST7789_drawPixel(x, y, color)` - Draw single pixel
+- `ST7789_fillRect(x, y, w, h, color)` - Draw filled rectangle
+
+### Shapes
+- `ST7789_drawLine(x0, y0, x1, y1, color)` - Draw line
+- `ST7789_drawFastHLine(x, y, w, color)` - Draw fast horizontal line
+- `ST7789_drawFastVLine(x, y, h, color)` - Draw fast vertical line
+- `ST7789_drawRect(x, y, w, h, color)` - Draw rectangle outline
+- `ST7789_drawCircle(x, y, r, color)` - Draw circle outline
+- `ST7789_fillCircle(x, y, r, color)` - Draw filled circle
+- `ST7789_drawTriangle(x1, y1, x2, y2, x3, y3, color)` - Draw triangle outline
+- `ST7789_fillTriangle(x1, y1, x2, y2, x3, y3, color)` - Draw filled triangle
+
+### Text (Adafruit GFX Fonts)
+- `ST7789_drawChar(x, y, ch, font, color, bgcolor)` - Draw single character
+- `ST7789_drawString(x, y, str, font, color, bgcolor)` - Draw text string
+- `ST7789_getTextBounds(str, font, &w, &h)` - Calculate text dimensions
+
+### Images & Utilities
+- `ST7789_drawImage(x, y, w, h, data)` - Draw RGB565 bitmap
+- `ST7789_invertColors(invert)` - Invert display colors
+- `ST7789_tearEffect(enable)` - Enable/disable tearing effect line
+- `ST7789_test()` - Run demonstration/test  
 
 ## SPI Interface
 

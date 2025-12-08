@@ -293,7 +293,7 @@ static void ST7789_CalculateDisplayParams(ST7789_DisplayType_t type, uint8_t rot
  * @param m -> rotation parameter(please refer it in st7789.h)
  * @return none
  */
-void ST7789_SetRotation(uint8_t m)
+void ST7789_setRotation(uint8_t m)
 {
 	// Update runtime configuration
 	st7789_config.rotation = m;
@@ -331,9 +331,9 @@ static void ST7789_SetAddressWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint1
 	ST7789_Select();
 	uint16_t x_start = x0 + ST7789_X_SHIFT, x_end = x1 + ST7789_X_SHIFT;
 	uint16_t y_start = y0 + ST7789_Y_SHIFT, y_end = y1 + ST7789_Y_SHIFT;
-	
+
 	/* Column Address set */
-	ST7789_WriteCommand(ST7789_CASET); 
+	ST7789_WriteCommand(ST7789_CASET);
 	{
 		uint8_t data[] = {x_start >> 8, x_start & 0xFF, x_end >> 8, x_end & 0xFF};
 		ST7789_WriteData(data, sizeof(data));
@@ -358,7 +358,7 @@ static void ST7789_SetAddressWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint1
  *                             If non-zero but less than minimum, uses minimum size
  * @return none
  */
-void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t buffer_size_bytes)
+void ST7789_init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t buffer_size_bytes)
 {
 	// Set display type and rotation
 	st7789_config.display_type = display_type;
@@ -387,7 +387,7 @@ void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t b
 		uint8_t data[] = {0x0C, 0x0C, 0x00, 0x33, 0x33};
 		ST7789_WriteData(data, sizeof(data));
 	}
-	ST7789_SetRotation(st7789_config.rotation);	//	MADCTL (Display Rotation)
+	ST7789_setRotation(st7789_config.rotation);	//	MADCTL (Display Rotation)
 
 	/* Internal LCD Voltage generator settings */
 	ST7789_WriteCommand(ST7789_GCTRL);		//	Gate Control
@@ -426,14 +426,14 @@ void ST7789_Init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t b
 	ST7789_WriteCommand (ST7789_DISPON);	//	Main screen turned on
 
 	HAL_Delay(50);
-	ST7789_Fill_Color(ST7789_COLOR_BLACK);				//	Fill with Black.
+	ST7789_fillScreen(ST7789_COLOR_BLACK);				//	Fill with Black.
 }
 
 /**
  * @brief Deinitialize ST7789 and free allocated buffer
  * @return none
  */
-void ST7789_Deinit(void)
+void ST7789_deinit(void)
 {
 	if (st7789_disp_buf != NULL) {
 		free(st7789_disp_buf);
@@ -483,9 +483,9 @@ ST7789_DisplayType_t ST7789_getDisplayType(void)
  * @param color -> color to Fill with
  * @return none
  */
-void ST7789_Fill_Color(uint16_t color)
+void ST7789_fillScreen(uint16_t color)
 {
-	ST7789_Fill(0, 0, ST7789_WIDTH - 1, ST7789_HEIGHT - 1, color);
+	ST7789_fillRect(0, 0, ST7789_WIDTH, ST7789_HEIGHT, color);
 }
 
 /**
@@ -511,55 +511,10 @@ static inline void ST7789_DrawPixel_Internal(uint16_t x, uint16_t y, uint16_t co
  * @param color -> color of the Pixel
  * @return none
  */
-void ST7789_DrawPixel(uint16_t x, uint16_t y, uint16_t color)
+void ST7789_drawPixel(uint16_t x, uint16_t y, uint16_t color)
 {
 	ST7789_Select();
 	ST7789_DrawPixel_Internal(x, y, color);
-	ST7789_UnSelect();
-}
-
-/**
- * @brief Fill an Area with single color
- * @param xSta&ySta -> coordinate of the start point
- * @param xEnd&yEnd -> coordinate of the end point
- * @param color -> color to Fill with
- * @return none
- */
-void ST7789_Fill(uint16_t xSta, uint16_t ySta, uint16_t xEnd, uint16_t yEnd, uint16_t color)
-{
-	// Bounds checking
-	if ((xSta >= ST7789_WIDTH) || (ySta >= ST7789_HEIGHT) ||
-	    (xEnd >= ST7789_WIDTH) || (yEnd >= ST7789_HEIGHT)) {
-		return;
-	}
-
-	// Ensure start <= end to prevent underflow
-	if ((xSta > xEnd) || (ySta > yEnd)) {
-		return;
-	}
-
-	ST7789_Select();
-	uint32_t size = (xEnd-xSta + 1) * (yEnd - ySta + 1) * 2;
-	uint32_t buffer_bytes = st7789_disp_buf_size * sizeof(uint16_t);
-	uint32_t buffer_count = size / buffer_bytes;
-	uint32_t remainder = size % buffer_bytes;
-
-	// Fill buffer with color in big-endian format (high byte first)
-	// ST7789 expects RGB565 as: [R4R3R2R1R0G5G4G3][G2G1G0B4B3B2B1B0]
-	uint16_t color_swapped = (color >> 8) | (color << 8);
-	for (uint16_t i = 0; i < st7789_disp_buf_size; i++) {
-		st7789_disp_buf[i] = color_swapped;
-	}
-
-	ST7789_SetAddressWindow(xSta, ySta, xEnd, yEnd);
-	for (uint32_t i = 0; i < buffer_count; i++) {
-		ST7789_WriteData((uint8_t*)st7789_disp_buf, buffer_bytes);
-	}
-
-	if (remainder > 0) {
-		ST7789_WriteData((uint8_t*)st7789_disp_buf, remainder);
-	}
-
 	ST7789_UnSelect();
 }
 
@@ -576,9 +531,7 @@ void ST7789_DrawPixel_4px(uint16_t x, uint16_t y, uint16_t color)
 	    (y < 1) || (y >= ST7789_HEIGHT - 1))
 		return;
 
-	ST7789_Select();
-	ST7789_Fill(x - 1, y - 1, x + 1, y + 1, color);
-	ST7789_UnSelect();
+	ST7789_fillRect(x - 1, y - 1, 3, 3, color);
 }
 
 /**
@@ -647,7 +600,7 @@ static void ST7789_DrawLine_Internal(uint16_t x0, uint16_t y0, uint16_t x1, uint
  * @param color -> color of the line to Draw
  * @return none
  */
-void ST7789_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
+void ST7789_drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
 {
     ST7789_Select();
     ST7789_DrawLine_Internal(x0, y0, x1, y1, color);
@@ -748,17 +701,20 @@ void ST7789_drawFastVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t color)
 
 /**
  * @brief Draw a Rectangle with single color
- * @param xi&yi -> 2 coordinates of 2 top points.
+ * @param x, y -> top-left corner coordinates
+ * @param w, h -> width and height
  * @param color -> color of the Rectangle line
  * @return none
  */
-void ST7789_DrawRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color)
+void ST7789_drawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
 {
+	if (w == 0 || h == 0) return;
+
 	ST7789_Select();
-	ST7789_DrawLine_Internal(x1, y1, x2, y1, color);
-	ST7789_DrawLine_Internal(x1, y1, x1, y2, color);
-	ST7789_DrawLine_Internal(x1, y2, x2, y2, color);
-	ST7789_DrawLine_Internal(x2, y1, x2, y2, color);
+	ST7789_DrawLine_Internal(x, y, x + w - 1, y, color);           // Top
+	ST7789_DrawLine_Internal(x, y, x, y + h - 1, color);           // Left
+	ST7789_DrawLine_Internal(x, y + h - 1, x + w - 1, y + h - 1, color); // Bottom
+	ST7789_DrawLine_Internal(x + w - 1, y, x + w - 1, y + h - 1, color); // Right
 	ST7789_UnSelect();
 }
 
@@ -769,7 +725,7 @@ void ST7789_DrawRectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, ui
  * @param color -> color of circle line
  * @return  none
  */
-void ST7789_DrawCircle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color)
+void ST7789_drawCircle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color)
 {
 	int16_t f = 1 - r;
 	int16_t ddF_x = 1;
@@ -813,7 +769,7 @@ void ST7789_DrawCircle(uint16_t x0, uint16_t y0, uint8_t r, uint16_t color)
  * @param data -> pointer of the Image array
  * @return none
  */
-void ST7789_DrawImage(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint16_t *data)
+void ST7789_drawImage(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint16_t *data)
 {
 	if ((x >= ST7789_WIDTH) || (y >= ST7789_HEIGHT))
 		return;
@@ -842,7 +798,7 @@ void ST7789_DrawImage(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint
  * @param invert -> Whether to invert
  * @return none
  */
-void ST7789_InvertColors(uint8_t invert)
+void ST7789_invertColors(uint8_t invert)
 {
 	ST7789_Select();
 	ST7789_WriteCommand(invert ? 0x21 /* INVON */ : 0x20 /* INVOFF */);
@@ -858,7 +814,7 @@ void ST7789_InvertColors(uint8_t invert)
  * @param bgcolor -> background color of the char
  * @return  none
  */
-void ST7789_WriteChar(uint16_t x, uint16_t y, char ch, const GFXfont *font, uint16_t color, uint16_t bgcolor)
+void ST7789_drawChar(uint16_t x, uint16_t y, char ch, const GFXfont *font, uint16_t color, uint16_t bgcolor)
 {
 	// Check if character is in font range
 	if ((ch < font->first) || (ch > font->last)) {
@@ -975,7 +931,7 @@ void ST7789_WriteChar(uint16_t x, uint16_t y, char ch, const GFXfont *font, uint
  * @param bgcolor -> background color of the string
  * @return  none
  */
-void ST7789_WriteString(uint16_t x, uint16_t y, const char *str, const GFXfont *font, uint16_t color, uint16_t bgcolor)
+void ST7789_drawString(uint16_t x, uint16_t y, const char *str, const GFXfont *font, uint16_t color, uint16_t bgcolor)
 {
 	int16_t cursor_x = x;
 	int16_t cursor_y = y;
@@ -1008,7 +964,7 @@ void ST7789_WriteString(uint16_t x, uint16_t y, const char *str, const GFXfont *
 		}
 
 		// Draw the character
-		ST7789_WriteChar(cursor_x, cursor_y, c, font, color, bgcolor);
+		ST7789_drawChar(cursor_x, cursor_y, c, font, color, bgcolor);
 
 		// Advance cursor
 		cursor_x += glyph->xAdvance;
@@ -1082,26 +1038,56 @@ void ST7789_getTextBounds(const char *str, const GFXfont *font, uint16_t *w, uin
  * @param color -> color of the Rectangle
  * @return  none
  */
-void ST7789_DrawFilledRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
+void ST7789_fillRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
 {
-	ST7789_Select();
+	uint32_t size;
+	uint32_t buffer_bytes;
+	uint32_t buffer_count;
+	uint32_t remainder;
+	uint16_t color_swapped;
+	uint16_t i;
+	uint32_t j;
 
 	/* Check input parameters */
-	if (x >= ST7789_WIDTH ||
-		y >= ST7789_HEIGHT) {
-		/* Return error */
+	if (x >= ST7789_WIDTH || y >= ST7789_HEIGHT) {
 		return;
 	}
 
-	/* Check width and height */
-	if ((x + w) >= ST7789_WIDTH) {
+	/* Clip width and height to screen boundaries */
+	if ((x + w) > ST7789_WIDTH) {
 		w = ST7789_WIDTH - x;
 	}
-	if ((y + h) >= ST7789_HEIGHT) {
+	if ((y + h) > ST7789_HEIGHT) {
 		h = ST7789_HEIGHT - y;
 	}
 
-	ST7789_Fill(x, y, x + w, y + h, color);
+	if (w == 0 || h == 0) {
+		return;
+	}
+
+	ST7789_Select();
+
+	/* Calculate total size in bytes */
+	size = w * h * 2;
+	buffer_bytes = st7789_disp_buf_size * sizeof(uint16_t);
+	buffer_count = size / buffer_bytes;
+	remainder = size % buffer_bytes;
+
+	/* Fill buffer with color in big-endian format */
+	color_swapped = (color >> 8) | (color << 8);
+	for (i = 0; i < st7789_disp_buf_size; i++) {
+		st7789_disp_buf[i] = color_swapped;
+	}
+
+	/* Set address window and write data */
+	ST7789_SetAddressWindow(x, y, x + w - 1, y + h - 1);
+	for (j = 0; j < buffer_count; j++) {
+		ST7789_WriteData((uint8_t*)st7789_disp_buf, buffer_bytes);
+	}
+
+	if (remainder > 0) {
+		ST7789_WriteData((uint8_t*)st7789_disp_buf, remainder);
+	}
 
 	ST7789_UnSelect();
 }
@@ -1112,7 +1098,7 @@ void ST7789_DrawFilledRectangle(uint16_t x, uint16_t y, uint16_t w, uint16_t h, 
  * @param color ->color of the lines
  * @return  none
  */
-void ST7789_DrawTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color)
+void ST7789_drawTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color)
 {
 	ST7789_Select();
 	/* Draw lines */
@@ -1122,13 +1108,13 @@ void ST7789_DrawTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uin
 	ST7789_UnSelect();
 }
 
-/** 
+/**
  * @brief Draw a filled Triangle with single color
  * @param  xi&yi -> 3 coordinates of 3 top points.
  * @param color ->color of the triangle
  * @return  none
  */
-void ST7789_DrawFilledTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color)
+void ST7789_fillTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color)
 {
 	ST7789_Select();
 	int16_t deltax = 0, deltay = 0, x = 0, y = 0, xinc1 = 0, xinc2 = 0,
@@ -1190,14 +1176,14 @@ void ST7789_DrawFilledTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y
 	ST7789_UnSelect();
 }
 
-/** 
+/**
  * @brief Draw a Filled circle with single color
  * @param x0&y0 -> coordinate of circle center
  * @param r -> radius of circle
  * @param color -> color of circle
  * @return  none
  */
-void ST7789_DrawFilledCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
+void ST7789_fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
 {
 	ST7789_Select();
 	int16_t f = 1 - r;
@@ -1237,7 +1223,7 @@ void ST7789_DrawFilledCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color)
  * @param tear -> Whether to tear
  * @return none
  */
-void ST7789_TearEffect(uint8_t tear)
+void ST7789_tearEffect(uint8_t tear)
 {
 	ST7789_Select();
 	ST7789_WriteCommand(tear ? 0x35 /* TEON */ : 0x34 /* TEOFF */);
@@ -1250,49 +1236,49 @@ void ST7789_TearEffect(uint8_t tear)
  * @param  none
  * @return  none
  */
-void ST7789_Test(void)
+void ST7789_test(void)
 {
-	ST7789_Fill_Color(ST7789_COLOR_WHITE);
-	ST7789_WriteString(10, 30, "Speed Test", &FreeSans12pt7b, ST7789_COLOR_RED, ST7789_COLOR_WHITE);
-	ST7789_Fill_Color(ST7789_COLOR_CYAN);
-	ST7789_Fill_Color(ST7789_COLOR_RED);
-	ST7789_Fill_Color(ST7789_COLOR_BLUE);
-	ST7789_Fill_Color(ST7789_COLOR_GREEN);
-	ST7789_Fill_Color(ST7789_COLOR_YELLOW);
-	ST7789_Fill_Color(ST7789_COLOR_BROWN);
-	ST7789_Fill_Color(ST7789_COLOR_DARKBLUE);
-	ST7789_Fill_Color(ST7789_COLOR_MAGENTA);
-	ST7789_Fill_Color(ST7789_COLOR_LIGHTGREEN);
-	ST7789_Fill_Color(ST7789_COLOR_LGRAY);
-	ST7789_Fill_Color(ST7789_COLOR_LBBLUE);
-	ST7789_Fill_Color(ST7789_COLOR_WHITE);
+	ST7789_fillScreen(ST7789_COLOR_WHITE);
+	ST7789_drawString(10, 30, "Speed Test", &FreeSans12pt7b, ST7789_COLOR_RED, ST7789_COLOR_WHITE);
+	ST7789_fillScreen(ST7789_COLOR_CYAN);
+	ST7789_fillScreen(ST7789_COLOR_RED);
+	ST7789_fillScreen(ST7789_COLOR_BLUE);
+	ST7789_fillScreen(ST7789_COLOR_GREEN);
+	ST7789_fillScreen(ST7789_COLOR_YELLOW);
+	ST7789_fillScreen(ST7789_COLOR_BROWN);
+	ST7789_fillScreen(ST7789_COLOR_DARKBLUE);
+	ST7789_fillScreen(ST7789_COLOR_MAGENTA);
+	ST7789_fillScreen(ST7789_COLOR_LIGHTGREEN);
+	ST7789_fillScreen(ST7789_COLOR_LGRAY);
+	ST7789_fillScreen(ST7789_COLOR_LBBLUE);
+	ST7789_fillScreen(ST7789_COLOR_WHITE);
 
-	ST7789_WriteString(10, 30, "Font test.", &FreeSerifBold18pt7b, ST7789_COLOR_GBLUE, ST7789_COLOR_WHITE);
-	ST7789_WriteString(10, 60, "Hello World!", &FreeSans12pt7b, ST7789_COLOR_RED, ST7789_COLOR_WHITE);
-	ST7789_WriteString(10, 90, "GFX Fonts", &FreeMono9pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_WHITE);
-	ST7789_WriteString(10, 120, "STM32 Demo", &Org_01, ST7789_COLOR_MAGENTA, ST7789_COLOR_WHITE);
+	ST7789_drawString(10, 30, "Font test.", &FreeSerifBold18pt7b, ST7789_COLOR_GBLUE, ST7789_COLOR_WHITE);
+	ST7789_drawString(10, 60, "Hello World!", &FreeSans12pt7b, ST7789_COLOR_RED, ST7789_COLOR_WHITE);
+	ST7789_drawString(10, 90, "GFX Fonts", &FreeMono9pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_WHITE);
+	ST7789_drawString(10, 120, "STM32 Demo", &Org_01, ST7789_COLOR_MAGENTA, ST7789_COLOR_WHITE);
 
-	ST7789_Fill_Color(ST7789_COLOR_RED);
-	ST7789_WriteString(10, 30, "Rect./Line.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
-	ST7789_DrawRectangle(30, 40, 100, 100, ST7789_COLOR_WHITE);
+	ST7789_fillScreen(ST7789_COLOR_RED);
+	ST7789_drawString(10, 30, "Rect./Line.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
+	ST7789_drawRect(30, 40, 71, 61, ST7789_COLOR_WHITE);  // 30,40,100,100 corners -> 30,40,71x61 size
 
-	ST7789_Fill_Color(ST7789_COLOR_RED);
-	ST7789_WriteString(10, 30, "Filled Rect.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
-	ST7789_DrawFilledRectangle(30, 40, 50, 50, ST7789_COLOR_WHITE);
+	ST7789_fillScreen(ST7789_COLOR_RED);
+	ST7789_drawString(10, 30, "Filled Rect.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
+	ST7789_fillRect(30, 40, 50, 50, ST7789_COLOR_WHITE);
 
-	ST7789_Fill_Color(ST7789_COLOR_RED);
-	ST7789_WriteString(10, 30, "Circle.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
-	ST7789_DrawCircle(60, 80, 25, ST7789_COLOR_WHITE);
+	ST7789_fillScreen(ST7789_COLOR_RED);
+	ST7789_drawString(10, 30, "Circle.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
+	ST7789_drawCircle(60, 80, 25, ST7789_COLOR_WHITE);
 
-	ST7789_Fill_Color(ST7789_COLOR_RED);
-	ST7789_WriteString(10, 30, "Filled Cir.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
-	ST7789_DrawFilledCircle(60, 80, 25, ST7789_COLOR_WHITE);
+	ST7789_fillScreen(ST7789_COLOR_RED);
+	ST7789_drawString(10, 30, "Filled Cir.", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
+	ST7789_fillCircle(60, 80, 25, ST7789_COLOR_WHITE);
 
-	ST7789_Fill_Color(ST7789_COLOR_RED);
-	ST7789_WriteString(10, 30, "Triangle", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
-	ST7789_DrawTriangle(30, 50, 30, 90, 60, 60, ST7789_COLOR_WHITE);
+	ST7789_fillScreen(ST7789_COLOR_RED);
+	ST7789_drawString(10, 30, "Triangle", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
+	ST7789_drawTriangle(30, 50, 30, 90, 60, 60, ST7789_COLOR_WHITE);
 
-	ST7789_Fill_Color(ST7789_COLOR_RED);
-	ST7789_WriteString(10, 30, "Filled Tri", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
-	ST7789_DrawFilledTriangle(30, 50, 30, 90, 60, 60, ST7789_COLOR_WHITE);
+	ST7789_fillScreen(ST7789_COLOR_RED);
+	ST7789_drawString(10, 30, "Filled Tri", &FreeSans12pt7b, ST7789_COLOR_YELLOW, ST7789_COLOR_BLACK);
+	ST7789_fillTriangle(30, 50, 30, 90, 60, 60, ST7789_COLOR_WHITE);
 }
