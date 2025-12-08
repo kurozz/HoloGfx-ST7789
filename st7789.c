@@ -74,8 +74,6 @@
 #define ST7789_Select() HAL_GPIO_WritePin(ST7789_CS_PORT, ST7789_CS_PIN, GPIO_PIN_RESET)
 #define ST7789_UnSelect() HAL_GPIO_WritePin(ST7789_CS_PORT, ST7789_CS_PIN, GPIO_PIN_SET)
 
-#define ST7789_ABS(x) ((x) > 0 ? (x) : -(x))
-
 /* Internal constants (moved from header to avoid namespace pollution) */
 #define HOR_LEN 5  // Number of horizontal lines to buffer
 #define MAX_DISPLAY_WIDTH 320  // Maximum width among all supported displays
@@ -545,7 +543,7 @@ void ST7789_DrawPixel_4px(uint16_t x, uint16_t y, uint16_t color)
 static void ST7789_DrawLine_Internal(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
 {
 	uint16_t swap;
-    uint16_t steep = ST7789_ABS(y1 - y0) > ST7789_ABS(x1 - x0);
+    uint16_t steep = abs(y1 - y0) > abs(x1 - x0);
     if (steep) {
 		swap = x0;
 		x0 = y0;
@@ -568,7 +566,7 @@ static void ST7789_DrawLine_Internal(uint16_t x0, uint16_t y0, uint16_t x1, uint
 
     int16_t dx, dy;
     dx = x1 - x0;
-    dy = ST7789_ABS(y1 - y0);
+    dy = abs(y1 - y0);
 
     int16_t err = dx / 2;
     int16_t ystep;
@@ -1121,8 +1119,8 @@ void ST7789_fillTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uin
 			yinc1 = 0, yinc2 = 0, den = 0, num = 0, numadd = 0, numpixels = 0,
 			curpixel = 0;
 
-	deltax = ST7789_ABS(x2 - x1);
-	deltay = ST7789_ABS(y2 - y1);
+	deltax = abs(x2 - x1);
+	deltay = abs(y2 - y1);
 	x = x1;
 	y = y1;
 
