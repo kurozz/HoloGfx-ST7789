@@ -3,6 +3,7 @@
 
 #include "fonts/fonts.h"
 #include "main.h"
+#include "st7789_colors.h"
 
 /* Display type enumeration */
 typedef enum {
@@ -43,34 +44,6 @@ extern SPI_HandleTypeDef ST7789_SPI_PORT;
 #define ST7789_DC_PIN   ST7789_DC_Pin
 #define ST7789_CS_PORT  ST7789_CS_GPIO_Port
 #define ST7789_CS_PIN   ST7789_CS_Pin
-
-/**
- *Color of pen
- *If you want to use another color, you can choose one in RGB565 format.
- */
-
-#define ST7789_COLOR_WHITE       0xFFFF
-#define ST7789_COLOR_BLACK       0x0000
-#define ST7789_COLOR_BLUE        0x001F
-#define ST7789_COLOR_RED         0xF800
-#define ST7789_COLOR_MAGENTA     0xF81F
-#define ST7789_COLOR_GREEN       0x07E0
-#define ST7789_COLOR_CYAN        0x7FFF
-#define ST7789_COLOR_YELLOW      0xFFE0
-#define ST7789_COLOR_GRAY        0x8430
-#define ST7789_COLOR_BRED        0xF81F
-#define ST7789_COLOR_GRED        0xFFE0
-#define ST7789_COLOR_GBLUE       0x07FF
-#define ST7789_COLOR_BROWN       0xBC40
-#define ST7789_COLOR_BRRED       0xFC07
-#define ST7789_COLOR_DARKBLUE    0x01CF
-#define ST7789_COLOR_LIGHTBLUE   0x7D7C
-#define ST7789_COLOR_GRAYBLUE    0x5458
-
-#define ST7789_COLOR_LIGHTGREEN  0x841F
-#define ST7789_COLOR_LGRAY       0xC618
-#define ST7789_COLOR_LGRAYBLUE   0xA651
-#define ST7789_COLOR_LBBLUE      0x2B12
 
 /* Internal macros - use getter functions (ST7789_width(), ST7789_height()) in application code */
 #define ST7789_WIDTH   (st7789_config.width)
