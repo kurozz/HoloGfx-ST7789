@@ -35,9 +35,9 @@
 #define ST7789_UnSelect() HAL_GPIO_WritePin(ST7789_CS_PORT, ST7789_CS_PIN, GPIO_PIN_SET)
 
 /* Internal constants (moved from header to avoid namespace pollution) */
-#define HOR_LEN 5  // Number of horizontal lines to buffer
-#define MAX_DISPLAY_WIDTH 320  // Maximum width among all supported displays
-#define MIN_BUFFER_SIZE 256  // Minimum buffer size in bytes (128 pixels)
+#define MIN_BUFFER_SIZE 256        // Minimum buffer size in bytes (128 pixels)
+#define MAX_DISPLAY_WIDTH 320      // Maximum width among all supported displays
+#define MAX_DISPLAY_HEIGHT 240     // Maximum height among all supported displays
 
 /* Global runtime configuration */
 ST7789_Config_t st7789_config = {
@@ -130,29 +130,29 @@ static inline uint8_t ST7789_isInitialized(void)
 
 /**
  * @brief Allocate or reallocate display buffer
- * @param buffer_size_bytes -> requested buffer size in bytes (0 = auto-calculate optimal)
+ * @param buffer_size_bytes -> requested buffer size in bytes (minimum 256)
  * @return 0 on success, -1 on failure
  */
 static int ST7789_AllocateBuffer(uint16_t buffer_size_bytes)
 {
 	uint16_t actual_buffer_size;
+	uint16_t min_size = MIN_BUFFER_SIZE;
 
-	// Calculate optimal buffer size if auto (0)
-	if (buffer_size_bytes == 0) {
-		// Optimal: display_width * HOR_LEN * 2 bytes
-		actual_buffer_size = st7789_config.width * HOR_LEN * 2;
+	// Maximum: full framebuffer for current display
+	uint32_t max_size = (uint32_t)st7789_config.width * st7789_config.height * 2;
+
+	// Clamp max_size to uint16_t range to avoid overflow
+	if (max_size > 65535) {
+		max_size = 65535;
+	}
+
+	// Clamp to min/max range
+	if (buffer_size_bytes < min_size) {
+		actual_buffer_size = min_size;
+	} else if (buffer_size_bytes > max_size) {
+		actual_buffer_size = (uint16_t)max_size;
 	} else {
-		// Use requested size with bounds checking
-		uint16_t min_size = MIN_BUFFER_SIZE;
-		uint16_t max_size = st7789_config.width * HOR_LEN * 2;
-
-		if (buffer_size_bytes < min_size) {
-			actual_buffer_size = min_size;
-		} else if (buffer_size_bytes > max_size) {
-			actual_buffer_size = max_size;
-		} else {
-			actual_buffer_size = buffer_size_bytes;
-		}
+		actual_buffer_size = buffer_size_bytes;
 	}
 
 	// Free existing buffer if any
@@ -323,8 +323,9 @@ static void ST7789_SetAddressWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint1
  * @brief Initialize ST7789 controller with runtime parameters
  * @param display_type -> type of display (135x240, 240x240, or 170x320)
  * @param rotation -> rotation value (0-3)
- * @param buffer_size_bytes -> buffer size in bytes (0 = auto-calculate optimal size)
- *                             If non-zero but less than minimum, uses minimum size
+ * @param buffer_size_bytes -> buffer size in bytes
+ *                             - Minimum: 256 bytes (values < 256 are clamped to 256)
+ *                             - Maximum: full framebuffer or 65535 bytes (whichever is smaller)
  * @return ST7789_OK on success, error code otherwise:
  *         - ST7789_ERR_ALREADY_INIT: display already initialized
  *         - ST7789_ERR_INVALID_PARAM: invalid display_type or rotation
@@ -354,8 +355,7 @@ ST7789_Status_t ST7789_init(ST7789_DisplayType_t display_type, uint8_t rotation,
 	                               &st7789_config.width, &st7789_config.height,
 	                               &st7789_config.x_shift, &st7789_config.y_shift);
 
-	// Allocate buffer with requested size
-	// 0 = auto (optimal), non-zero = custom (bounded to min/max)
+	// Allocate buffer with requested size (clamped to min 256 bytes, max full framebuffer)
 	if (ST7789_AllocateBuffer(buffer_size_bytes) != 0) {
 		return ST7789_ERR_BUFFER_ALLOC;
 	}
