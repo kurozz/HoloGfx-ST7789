@@ -21,6 +21,14 @@ typedef struct {
 	ST7789_DisplayType_t display_type;
 } ST7789_Config_t;
 
+/* Status codes */
+typedef enum {
+	ST7789_OK = 0,
+	ST7789_ERR_BUFFER_ALLOC = -1,
+	ST7789_ERR_ALREADY_INIT = -2,
+	ST7789_ERR_INVALID_PARAM = -3
+} ST7789_Status_t;
+
 /* choose a Hardware SPI port to use. */
 #define ST7789_SPI_PORT hspi1
 extern SPI_HandleTypeDef ST7789_SPI_PORT;
@@ -71,7 +79,7 @@ extern SPI_HandleTypeDef ST7789_SPI_PORT;
 #define ST7789_Y_SHIFT (st7789_config.y_shift)
 
 /* Basic functions. */
-void ST7789_init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t buffer_size_bytes);
+ST7789_Status_t ST7789_init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t buffer_size_bytes);
 void ST7789_deinit(void);
 void ST7789_setRotation(uint8_t rotation);
 
@@ -82,7 +90,6 @@ uint8_t ST7789_getRotation(void);
 ST7789_DisplayType_t ST7789_getDisplayType(void);
 void ST7789_fillScreen(uint16_t color);
 void ST7789_drawPixel(uint16_t x, uint16_t y, uint16_t color);
-void ST7789_DrawPixel_4px(uint16_t x, uint16_t y, uint16_t color);
 
 /* Graphical functions. */
 void ST7789_drawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t color);

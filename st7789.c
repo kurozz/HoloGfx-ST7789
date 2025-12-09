@@ -365,10 +365,26 @@ static void ST7789_SetAddressWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint1
  * @param rotation -> rotation value (0-3)
  * @param buffer_size_bytes -> buffer size in bytes (0 = auto-calculate optimal size)
  *                             If non-zero but less than minimum, uses minimum size
- * @return none
+ * @return ST7789_OK on success, error code otherwise:
+ *         - ST7789_ERR_ALREADY_INIT: display already initialized
+ *         - ST7789_ERR_INVALID_PARAM: invalid display_type or rotation
+ *         - ST7789_ERR_BUFFER_ALLOC: buffer allocation failed
  */
-void ST7789_init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t buffer_size_bytes)
+ST7789_Status_t ST7789_init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t buffer_size_bytes)
 {
+	// Check if already initialized
+	if (ST7789_isInitialized()) {
+		return ST7789_ERR_ALREADY_INIT;
+	}
+
+	// Validate parameters
+	if (display_type > ST7789_DISPLAY_170x320) {
+		return ST7789_ERR_INVALID_PARAM;
+	}
+	if (rotation > 3) {
+		return ST7789_ERR_INVALID_PARAM;
+	}
+
 	// Set display type and rotation
 	st7789_config.display_type = display_type;
 	st7789_config.rotation = rotation;
@@ -380,7 +396,9 @@ void ST7789_init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t b
 
 	// Allocate buffer with requested size
 	// 0 = auto (optimal), non-zero = custom (bounded to min/max)
-	ST7789_AllocateBuffer(buffer_size_bytes);
+	if (ST7789_AllocateBuffer(buffer_size_bytes) != 0) {
+		return ST7789_ERR_BUFFER_ALLOC;
+	}
 
 	// Hardware initialization
 	HAL_Delay(10);
@@ -436,6 +454,8 @@ void ST7789_init(ST7789_DisplayType_t display_type, uint8_t rotation, uint16_t b
 
 	HAL_Delay(50);
 	ST7789_fillScreen(ST7789_COLOR_BLACK);				//	Fill with Black.
+
+	return ST7789_OK;
 }
 
 /**
@@ -527,24 +547,6 @@ void ST7789_drawPixel(uint16_t x, uint16_t y, uint16_t color)
 	ST7789_Select();
 	ST7789_DrawPixel_Internal(x, y, color);
 	ST7789_UnSelect();
-}
-
-/**
- * @brief Draw a big Pixel at a point
- * @param x&y -> coordinate of the point (center of 3x3 pixel block)
- * @param color -> color of the Pixel
- * @return none
- */
-void ST7789_DrawPixel_4px(uint16_t x, uint16_t y, uint16_t color)
-{
-	if (!ST7789_isInitialized()) return;
-
-	// Need at least 1 pixel margin for 3x3 block
-	if ((x < 1) || (x >= ST7789_WIDTH - 1) ||
-	    (y < 1) || (y >= ST7789_HEIGHT - 1))
-		return;
-
-	ST7789_fillRect(x - 1, y - 1, 3, 3, color);
 }
 
 /**
