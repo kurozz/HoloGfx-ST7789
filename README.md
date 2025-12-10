@@ -1,117 +1,96 @@
-# ST7789-STM32
-Using STM32's Hardware SPI (with DMA support) to drive a ST7789 based LCD display.
+# HoloGfx-ST7789
 
-## How to use
+ST7789 TFT LCD driver for STM32 microcontrollers using HAL SPI with optional DMA support.
 
-1. Copy the "st7789" dir to your project src path, add it to include path
-2. Include `"st7789.h"` in where you want to use this driver.
-3. Configure pin definitions in `"st7789.h"` (RST, DC, CS pins)
-4. In system startup, initialize with `ST7789_init(display_type, rotation, buffer_size);`
-5. Run `ST7789_test()` to verify the driver
-6. Don't forget to turn the backlight on
+---
 
-### Initialization Example
+## Features
+
+- **DMA Support**: Optional DMA transfers for increased performance
+- **Configurable Buffer**: Dynamic allocation from 256 bytes up to full framebuffer or 65535 bytes
+- **Adafruit GFX Fonts**: Compatibility with Adafruit GFX font format
+
+---
+
+## Supported Platforms
+
+### STM32 Families
+Compatible with all STM32 families using generic HAL:
+- STM32F0, F1, F4, F7
+- STM32H7
+- STM32L4
+- STM32G0
+
+**Tested on**: STM32F103, STM32G071
+
+### Display Types
+- 135×240 pixels (not tested)
+- 240×240 pixels
+- 170×320 pixels (not tested)
+
+> Custom resolutions can be configured. Refer to ST7789 datasheet for details.
+
+---
+
+## Getting Started
+
+### Installation
+TODO: Add installation instructions
+
+### Hardware Setup
+TODO: Add wiring diagram and pin configuration
+
+### CubeMX Configuration
+TODO: Add SPI and DMA configuration steps
+
+### Basic Usage
 
 ```c
-// Initialize with 240x240 display, rotation 0, 2400 byte buffer
-ST7789_init(ST7789_DISPLAY_240x240, 0, 2400);
+#include "st7789.h"
 
-// Get display dimensions
-uint16_t w = ST7789_width();
-uint16_t h = ST7789_height();
-```  
+// Initialize display
+ST7789_Status_t status = ST7789_init(ST7789_DISPLAY_240x240, 0, 2400);
+if (status != ST7789_OK) {
+    // Handle initialization error
+}
 
-This code has been tested on 240x240 & 170x320 LCD screens.
+// Fill screen with color
+ST7789_fillScreen(ST7789_COLOR_BLACK);
 
-> DMA is only useful when huge block write is performed, e.g: Fill full screen or draw a bitmap.
-> Most MCUs don't have a large enough RAM, so a framebuffer is "cut" into pieces, e.g: a 240x5 pixel buffer for a 240x240 screen.
+// Draw text
+ST7789_drawString(10, 10, "Hello World!", &FreeSans12pt7b, ST7789_COLOR_WHITE, ST7789_COLOR_BLACK);
+```
 
-## API Reference
+---
 
-### Initialization & Configuration
-- `ST7789_init(display_type, rotation, buffer_size)` - Initialize display
-- `ST7789_deinit()` - Deinitialize and free resources
-- `ST7789_setRotation(rotation)` - Change screen rotation (0-3)
-- `ST7789_width()` - Get current width in pixels
-- `ST7789_height()` - Get current height in pixels
-- `ST7789_getRotation()` - Get current rotation
-- `ST7789_getDisplayType()` - Get display type
+## Adafruit GFX Font Format
 
-### Basic Drawing
-- `ST7789_fillScreen(color)` - Fill entire screen with color
-- `ST7789_drawPixel(x, y, color)` - Draw single pixel
-- `ST7789_fillRect(x, y, w, h, color)` - Draw filled rectangle
+This library uses the Adafruit GFX font format for text rendering, providing compatibility with the extensive collection of fonts available in the [Adafruit GFX Library](https://github.com/adafruit/Adafruit-GFX-Library).
 
-### Shapes
-- `ST7789_drawLine(x0, y0, x1, y1, color)` - Draw line
-- `ST7789_drawFastHLine(x, y, w, color)` - Draw fast horizontal line
-- `ST7789_drawFastVLine(x, y, h, color)` - Draw fast vertical line
-- `ST7789_drawRect(x, y, w, h, color)` - Draw rectangle outline
-- `ST7789_drawCircle(x, y, r, color)` - Draw circle outline
-- `ST7789_fillCircle(x, y, r, color)` - Draw filled circle
-- `ST7789_drawTriangle(x1, y1, x2, y2, x3, y3, color)` - Draw triangle outline
-- `ST7789_fillTriangle(x1, y1, x2, y2, x3, y3, color)` - Draw filled triangle
+### Adding Custom Fonts
 
-### Text (Adafruit GFX Fonts)
-- `ST7789_drawChar(x, y, ch, font, color, bgcolor)` - Draw single character
-- `ST7789_drawString(x, y, str, font, color, bgcolor)` - Draw text string
-- `ST7789_getTextBounds(str, font, &w, &h)` - Calculate text dimensions
+1. Convert your font using [Adafruit GFX fontconvert](https://github.com/adafruit/Adafruit-GFX-Library/tree/master/fontconvert)
+2. Add the generated `.h` file to the `fonts/` directory
+3. Change the include guard from `#pragma once` type to `#ifndef` type
+4. Change `#include <Adafruit_GFX.h>` to `#include "gfxfont.h"`
+5. Change types from `const uint8_t FreeMono12pt7bBitmaps[] PROGMEM` or similar to `static const uint8_t FreeMono12pt7bBitmaps[]`
+6. Include the font header in `fonts/fonts.h`
 
-### Images & Utilities
-- `ST7789_drawImage(x, y, w, h, data)` - Draw RGB565 bitmap
-- `ST7789_invertColors(invert)` - Invert display colors
-- `ST7789_tearEffect(enable)` - Enable/disable tearing effect line
-- `ST7789_test()` - Run demonstration/test  
+---
 
-## SPI Interface
+## Credits & References
 
-If you are using **Dupont Line(or jumper wire)**, please notice that your CLK frequency should not exceed 40MHz (may vary, depends on the length of your wire), **otherwise data transfer will collapse!**  
-For higher speed applications, it's recommended to **use PCB** rather than jumper wires.  
+This library is based on and inspired by:
 
-In STM32CubeMX/CubeIDE, config the SPI params as follow:
+- **[ST7789-STM32](https://github.com/Floyd-Fish/ST7789-STM32)** by Floyd-Fish - Base ST7789 driver implementation
+- **[Adafruit GFX Library](https://github.com/adafruit/Adafruit-GFX-Library)** - Font format and text rendering concepts
+- [Arduino-ST7789-Library](https://github.com/ananevilya/Arduino-ST7789-Library) by ananevilya
+- [stm32-st7735](https://github.com/afiskon/stm32-st7735) by afiskon
 
-![spi](fig/spi.jpg)
+---
 
-I've had a simple test, connect the screen and mcu via 20cm dupont line, and it works normally on **21.25MB/s**. And if I connect a logic analyzer to the clk and data lines(15cm probe), **21.25MB/s doesn't work anymore**, I have to lower its datarate to 10.625MB/s. Using PCB to connect the display, it works up to **40MB/s** and still looks nice.
+## License
 
-## Supported Displays
+This project is licensed under the **GNU General Public License v3.0** (GPL-3.0).
 
-- 135*240   
-- 240*240   
-- 170*320 (new)  
-
-If you like, you could customize it's resolution to drive different displays you prefer. 
-> For example, a 240x320 display is perfectly suited for st7789.  
-> Just set all X_SHIFT and Y_SHIFT to 0, and set resolution to 240|320.  
-
-For more details, please refer to ST7789's datasheet.  
-
-## HAL SPI Performance
-
-- DMA Enabled
-
-With DMA enabled, cpu won't participate in the data transfer process. So filling a large size of data block is much faster.e.g. fill, drawImage. (You can see no interval between each data write)
-
-![DMA](/fig/fill_dma.png)
-
-
-- DMA Disabled
-
-Without DMA enabled, the filling process could be a suffer. As you can see, before each data byte write, an interval is inserted, so the total datarate would degrade. 
-
-![noDMA](/fig/fill_normal.png)
-
-Especially in some functions where need a little math, the cpu needs to calculate data before a write operation, so the effective datarate would be much lower.(e.g. drawLine)
-
-![line](fig/draw_line.png)
-
-
-# Special thanks to
-
-#### Reference
-- [ananevilya's Arduino-ST7789-Lib](https://github.com/ananevilya/Arduino-ST7789-Library)  
-- [afiskon's stm32-st7735 lib](https://github.com/afiskon/stm32-st7735)
-
-#### Contributor
-- [JasonLrh](https://github.com/JasonLrh)  
-- [ZiangCheng](https://github.com/ZiangCheng)  
+See the [LICENSE](LICENSE) file for details.
